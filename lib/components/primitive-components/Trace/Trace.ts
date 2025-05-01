@@ -44,7 +44,6 @@ import { getOtherSchematicTraces } from "./get-other-schematic-traces"
 import { getTraceDisplayName } from "./get-trace-display-name"
 import { pushEdgesOfSchematicTraceToPreventOverlap } from "./push-edges-of-schematic-trace-to-prevent-overlap"
 import { isRouteOutsideBoard } from "lib/utils/is-route-outside-board"
-import { Board } from "../../normal-components/Board"
 
 type PcbRouteObjective =
   | RouteHintPoint
@@ -862,7 +861,7 @@ export class Trace
 
     const portIds = connectedPorts.map((p) => p.port.schematic_port_id).sort()
     const portPairKey = portIds.join(",")
-    const board = this.parent as Board
+    const board = this.root?._getBoard()
     if (board?._connectedSchematicPortPairs)
       if (board._connectedSchematicPortPairs.has(portPairKey)) {
         return
