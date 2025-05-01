@@ -45,6 +45,7 @@ import { getTraceDisplayName } from "./get-trace-display-name"
 import { pushEdgesOfSchematicTraceToPreventOverlap } from "./push-edges-of-schematic-trace-to-prevent-overlap"
 import { isRouteOutsideBoard } from "lib/utils/is-route-outside-board"
 import { Board } from "../../normal-components/Board"
+import { getSchematicTraceConnections } from "lib/utils/schematic/getSchematicTraceConnections"
 
 type PcbRouteObjective =
   | RouteHintPoint
@@ -918,18 +919,26 @@ export class Trace
     }
 
     // Add points for autorouter to connect
-    connection.pointsToConnect = portsWithPosition.map(({ position }) => ({
-      ...position,
-      layer: "top",
-    }))
+    const [startPort, endPort] = portsWithPosition
+    const startPos = { ...startPort.position, layer: "top" }
+
+    const { connections: schematicConnections, wouldGoTowardsSymbol } =
+      getSchematicTraceConnections({
+        startPort: { ...startPort, position: startPos },
+        endPort: {
+          ...endPort,
+          position: { ...endPort.position, layer: "top" },
+        },
+        sourceTraceId: this.source_trace_id!,
+      })
 
     const bounds = computeObstacleBounds(obstacles)
-
     const BOUNDS_MARGIN = 2 // mm
+
     const simpleRouteJsonInput: SimpleRouteJson = {
       minTraceWidth: 0.1,
       obstacles,
-      connections: [connection],
+      connections: schematicConnections,
       bounds: {
         minX: bounds.minX - BOUNDS_MARGIN,
         maxX: bounds.maxX + BOUNDS_MARGIN,
@@ -954,24 +963,19 @@ export class Trace
       isShortenPathWithShortcutsEnabled: true,
       marginsWithCosts: [
         {
+          margin: 2,
+          enterCost: wouldGoTowardsSymbol ? 5 : 0,
+          travelCostFactor: wouldGoTowardsSymbol ? 3 : 1,
+        },
+        {
           margin: 1,
+          enterCost: wouldGoTowardsSymbol ? 2 : 0,
+          travelCostFactor: wouldGoTowardsSymbol ? 2 : 1,
+        },
+        {
+          margin: 0.5,
           enterCost: 0,
           travelCostFactor: 1,
-        },
-        {
-          margin: 0.3,
-          enterCost: 0,
-          travelCostFactor: 1,
-        },
-        {
-          margin: 0.2,
-          enterCost: 0,
-          travelCostFactor: 2,
-        },
-        {
-          margin: 0.1,
-          enterCost: 0,
-          travelCostFactor: 3,
         },
       ],
     })
@@ -993,15 +997,21 @@ export class Trace
       skipOtherTraceInteraction = true
     }
 
-    const [{ route }] = results
+    // Combine routes if multiple connections were generated (e.g., for wouldGoTowardsSymbol)
+    const combinedRoute =
+      schematicConnections.length > 1
+        ? results.flatMap((r, i) =>
+            i < results.length - 1 ? r.route.slice(0, -1) : r.route,
+          )
+        : results[0].route
 
     let edges: SchematicTrace["edges"] = []
 
     // Add autorouted path
-    for (let i = 0; i < route.length - 1; i++) {
+    for (let i = 0; i < combinedRoute.length - 1; i++) {
       edges.push({
-        from: route[i],
-        to: route[i + 1],
+        from: combinedRoute[i],
+        to: combinedRoute[i + 1],
       })
     }
 
@@ -1037,6 +1047,10 @@ export class Trace
     // The first/last edges sometimes don't connect to the ports because the
     // autorouter is within the "goal box" and doesn't finish the route
     // Add a stub to connect the last point to the end port
+    if (edges.length === 0) {
+      return
+    }
+
     const lastEdge = edges[edges.length - 1]
     const lastEdgePort = portsWithPosition[portsWithPosition.length - 1]
     const lastDominantDirection = getDominantDirection(lastEdge)
