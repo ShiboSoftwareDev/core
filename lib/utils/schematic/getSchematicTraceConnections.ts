@@ -1,4 +1,4 @@
-import type { Point } from "@tscircuit/soup-util"
+import type { Point } from "@tscircuit/math-utils"
 import type { SimpleRouteConnection } from "../autorouting/SimpleRouteJson"
 import type { Port } from "lib/components/primitive-components/Port"
 import { getRelativeDirection } from "../get-relative-direction"
