@@ -43,6 +43,14 @@ export class PowerSource extends NormalComponent<
       are_pins_interchangeable: false,
     } as any)
     this.source_component_id = source_component.source_component_id
+
+    if (props.voltage) {
+      db.simulation_voltage_source.insert({
+        voltage: props.voltage,
+        positive_source_port_id: this.portMap.pin1.source_port_id!,
+        negative_source_port_id: this.portMap.pin2.source_port_id!,
+      })
+    }
   }
 
   pos = this.portMap.pin1
