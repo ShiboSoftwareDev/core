@@ -57,6 +57,18 @@ export class Port extends PrimitiveComponent<typeof portProps> {
     this.matchedComponents = []
   }
 
+  _isBoardPinoutFromAttributes(): boolean | undefined {
+    const parent = this.parent as any
+    if (parent?._parsedProps?.pinAttributes) {
+      const pinAttributes = parent._parsedProps.pinAttributes
+      for (const alias of this.getNameAndAliases()) {
+        if (pinAttributes[alias]?.includeInBoardPinout) {
+          return true
+        }
+      }
+    }
+  }
+
   _getGlobalPcbPositionBeforeLayout(): { x: number; y: number } {
     const matchedPcbElm = this.matchedComponents.find((c) => c.isPcbPrimitive)
     const parentComponent = this.parent
@@ -335,6 +347,7 @@ export class Port extends PrimitiveComponent<typeof portProps> {
         ...matchCenter,
 
         source_port_id: this.source_port_id!,
+        is_board_pinout: this._isBoardPinoutFromAttributes(),
       })
       this.pcb_port_id = pcb_port.pcb_port_id
     } else {
@@ -378,6 +391,7 @@ export class Port extends PrimitiveComponent<typeof portProps> {
       pcb_group_id: this.getGroup()?.pcb_group_id ?? undefined,
       ...matchCenter,
       source_port_id: this.source_port_id!,
+      is_board_pinout: this._isBoardPinoutFromAttributes(),
     })
     this.pcb_port_id = pcb_port.pcb_port_id
   }
